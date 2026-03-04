@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Film Simulator</title>
+    <style>
+        :root { --accent: #007AFF; --bg: #000; --ui-bg: rgba(25, 25, 28, 0.98); }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; 
+            background: var(--bg); color: #fff; margin: 0; 
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .header { padding: 15px 0; text-align: center; background: #000; flex-shrink: 0; }
+        .header h1 { font-size: 11px; font-weight: 700; letter-spacing: 0.3em; margin: 0; color: #666; }
+
+        .viewport { 
+            flex: 1; display: flex; justify-content: center; align-items: center; 
+            padding: 10px; position: relative; overflow: hidden; background: #080808;
+        }
+        canvas { 
+            max-width: 100%; max-height: 100%; object-fit: contain;
+            display: none;
+        }
+        #placeholder { font-size: 12px; color: #444; text-align: center; }
+
+        .controls { 
+            background: var(--ui-bg); border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+            border-radius: 24px 24px 0 0; width: 100%; max-width: 500px;
+            margin: 0 auto; flex-shrink: 0;
+        }
+
+        .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .btn { 
+            padding: 12px; border-radius: 12px; text-align: center; 
+            font-size: 13px; font-weight: 800; cursor: pointer; border: none;
+        }
+        .btn-import { background: #fff; color: #000; }
+        .btn-save { background: var(--accent); color: #fff; display: none; }
+
+        .presets { 
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
+            margin-bottom: 20px; 
+        }
+        .p-btn { 
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 4px; border-radius: 8px; text-align: center;
+        }
+        .p-btn.active { border-color: var(--accent); background: rgba(0, 122, 255, 0.2); }
+        .p-year { font-size: 10px; font-weight: 800; color: var(--accent); display: block; }
+
+        .s-group { margin-bottom: 12px; }
+        .s-header { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-bottom: 4px; }
+        
+        input[type="range"] { 
+            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); 
+            height: 2px; border-radius: 1px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb { 
+            -webkit-appearance: none; width: 22px; height: 22px; 
+            background: #fff; border-radius: 50%;
+        }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header"><h1>FILM SIMULATOR</h1></div>
+
+<div class="viewport" id="viewport">
+    <div id="placeholder">画像を選択してください</div>
+    <canvas id="glCanvas"></canvas>
+</div>
+
+<div class="controls">
+    <div class="action-row">
+        <label class="btn btn-import">写真を選択<input type="file" id="imageInput" accept="image/*"></label>
+        <button class="btn btn-save" id="saveBtn">画像を保存</button>
+    </div>
+
+    <div class="presets">
+        <div class="p-btn" onclick="applyPreset(1970)"><span class="p-year">1970s</span></div>
+        <div class="p-btn" onclick="applyPreset(1980)"><span class="p-year">1980s</span></div>
+        <div class="p-btn" onclick="applyPreset(1990)"><span class="p-year">1990s</span></div>
+        <div class="p-btn" onclick="applyPreset(2000)"><span class="p-year">2000s</span></div>
+    </div>
+
+    <div class="s-group">
+        <div class="s-header"><span>露出</span><span id="v0">0</span></div>
+        <input type="range" id="sExp" min="-100" max="100" value="0">
+    </div>
+    <div class="s-group">
+        <div class="s-header"><span>フィルム色</span><span id="v1">0%</span></div>
+        <input type="range" id="sColor" min="0" max="100" value="0">
+    </div>
+    <div class="s-group">
+        <div class="s-header"><span>粒子感</span><span id="v2">0%</span></div>
+        <input type="range" id="sGrain" min="0" max="100" value="0">
+    </div>
+    <div class="s-group">
+        <div class="s-header"><span>周辺減光</span><span id="v3">0%</span></div>
+        <input type="range" id="sVig" min="0" max="100" value="0">
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('glCanvas');
+const viewport = document.getElementById('viewport');
+const saveBtn = document.getElementById('saveBtn');
+let gl, program, imgTex, currentImg, isComparing = false;
+
+const presets = {
+    1970: { exp: -15, color: 80, grain: 40, vig: 60 },
+    1980: { exp: 0, color: 70, grain: 60, vig: 40 },
+    1990: { exp: 20, color: 90, grain: 50, vig: 25 },
+    2000: { exp: 10, color: 40, grain: 20, vig: 15 }
+};
+
+function applyPreset(year) {
+    const p = presets[year];
+    document.getElementById('sExp').value = p.exp;
+    document.getElementById('sColor').value = p.color;
+    document.getElementById('sGrain').value = p.grain;
+    document.getElementById('sVig').value = p.vig;
+    document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    updateUI();
+}
+
+function updateUI() {
+    ['sExp','sColor','sGrain','sVig'].forEach((id, i) => {
+        let v = document.getElementById(id).value;
+        document.getElementById('v'+i).innerText = (v > 0 && i==0 ? '+' : '') + v + (i==0 ? '' : '%');
+    });
+    draw();
+}
+
+document.getElementById('imageInput').onchange = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        currentImg = new Image();
+        currentImg.onload = () => { 
+            canvas.style.display="block"; 
+            saveBtn.style.display="block";
+            document.getElementById('placeholder').style.display="none";
+            render(); 
+        };
+        currentImg.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+// 保存機能
+saveBtn.onclick = () => {
+    if(!currentImg) return;
+    draw(); // 最新の状態で描画
+    const link = document.createElement('a');
+    link.download = 'film-simulated-' + Date.now() + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.9);
+    link.click();
+};
+
+function initGL() {
+    gl = canvas.getContext('webgl', { preserveDrawingBuffer: true }); // 保存に必要
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, `attribute vec2 p; varying vec2 u; void main(){ u=p*0.5+0.5; gl_Position=vec4(p,0.0,1.0); }`);
+    gl.compileShader(vs);
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, `
+        precision highp float;
+        varying vec2 u; uniform sampler2D t;
+        uniform float u_e, u_c, u_g, u_v, u_time;
+        uniform bool u_cp;
+        float rnd(vec2 co) { return fract(sin(dot(co.xy,vec2(12.9898,78.233)))*43758.5453); }
+        void main() {
+            vec4 src = texture2D(t, vec2(u.x, 1.0-u.y));
+            if(u_cp) { gl_FragColor=src; return; }
+            vec3 c = src.rgb;
+            c *= pow(2.0, u_e * 1.5);
+            if(u_c > 0.0) {
+                float t = u_c;
+                c.r = mix(c.r, c.r * 1.15, t);
+                c.b = mix(c.b, c.b * 0.9, t);
+                c = smoothstep(-0.05*t, 1.05+0.05*t, c);
+            }
+            if(u_g > 0.0) { c += (rnd(u + fract(u_time)) - 0.5) * (u_g * 0.2); }
+            if(u_v > 0.0) { c *= smoothstep(1.0, 0.6 - (u_v * 0.2), distance(u, vec2(0.5))); }
+            gl_FragColor = vec4(c, 1.0);
+        }
+    `);
+    gl.compileShader(fs);
+    program = gl.createProgram();
+    gl.attachShader(program, vs); gl.attachShader(program, fs);
+    gl.linkProgram(program);
+}
+
+function render() {
+    if(!currentImg) return;
+    if(!gl) initGL();
+    canvas.width=currentImg.width; canvas.height=currentImg.height;
+    gl.viewport(0,0,canvas.width,canvas.height);
+    if(imgTex) gl.deleteTexture(imgTex);
+    imgTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, imgTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, currentImg);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    draw();
+}
+
+function draw() {
+    if(!gl || !program) return;
+    gl.useProgram(program);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, imgTex);
+    gl.uniform1i(gl.getUniformLocation(program, "t"), 0);
+    gl.uniform1f(gl.getUniformLocation(program, "u_e"), document.getElementById('sExp').value / 100);
+    gl.uniform1f(gl.getUniformLocation(program, "u_c"), document.getElementById('sColor').value / 100);
+    gl.uniform1f(gl.getUniformLocation(program, "u_g"), document.getElementById('sGrain').value / 100);
+    gl.uniform1f(gl.getUniformLocation(program, "u_v"), document.getElementById('sVig').value / 100);
+    gl.uniform1f(gl.getUniformLocation(program, "u_time"), performance.now()/1000);
+    gl.uniform1i(gl.getUniformLocation(program, "u_cp"), isComparing);
+    const pLoc = gl.getAttribLocation(program, "p");
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(pLoc);
+    gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+['sExp','sColor','sGrain','sVig'].forEach(id => {
+    document.getElementById(id).oninput = updateUI;
+});
+
+const setComp = (v) => { isComparing = v; draw(); };
+viewport.addEventListener('touchstart', (e) => { if(e.target === canvas) { e.preventDefault(); setComp(true); } });
+viewport.addEventListener('touchend', () => setComp(false));
+viewport.addEventListener('mousedown', () => setComp(true));
+viewport.addEventListener('mouseup', () => setComp(false));
+</script>
+</body>
+</html>
