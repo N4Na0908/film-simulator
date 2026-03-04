@@ -3,107 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Film Simulator</title>
+    <title>Film Simulator Pro</title>
     <style>
-        :root { --accent: #007AFF; --bg: #000; --ui-bg: rgba(25, 25, 28, 0.98); }
+        :root { --accent: #007AFF; --bg: #000; --ui-bg: rgba(28, 28, 30, 0.98); }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { 
             font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; 
             background: var(--bg); color: #fff; margin: 0; 
             height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
-
         .header { padding: 15px 0; text-align: center; background: #000; flex-shrink: 0; }
         .header h1 { font-size: 11px; font-weight: 700; letter-spacing: 0.3em; margin: 0; color: #666; }
-
-        .viewport { 
-            flex: 1; display: flex; justify-content: center; align-items: center; 
-            padding: 10px; position: relative; overflow: hidden; background: #080808;
-        }
-        canvas { 
-            max-width: 100%; max-height: 100%; object-fit: contain;
-            display: none;
-        }
+        .viewport { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; position: relative; overflow: hidden; background: #080808; }
+        canvas { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
         #placeholder { font-size: 12px; color: #444; text-align: center; }
-
         .controls { 
             background: var(--ui-bg); border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
-            border-radius: 24px 24px 0 0; width: 100%; max-width: 500px;
-            margin: 0 auto; flex-shrink: 0;
+            padding: 20px 20px calc(25px + env(safe-area-inset-bottom));
+            border-radius: 24px 24px 0 0; width: 100%; max-width: 500px; margin: 0 auto; flex-shrink: 0;
         }
-
         .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .btn { 
-            padding: 12px; border-radius: 12px; text-align: center; 
-            font-size: 13px; font-weight: 800; cursor: pointer; border: none;
-        }
+        .btn { padding: 12px; border-radius: 12px; text-align: center; font-size: 13px; font-weight: 800; cursor: pointer; border: none; }
         .btn-import { background: #fff; color: #000; }
         .btn-save { background: var(--accent); color: #fff; display: none; }
-
-        .presets { 
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; 
-            margin-bottom: 20px; 
-        }
-        .p-btn { 
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            padding: 8px 4px; border-radius: 8px; text-align: center;
-        }
-        .p-btn.active { border-color: var(--accent); background: rgba(0, 122, 255, 0.2); }
-        .p-year { font-size: 10px; font-weight: 800; color: var(--accent); display: block; }
-
+        .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 20px; }
+        .p-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 4px; border-radius: 8px; text-align: center; transition: 0.2s; }
+        .p-btn.active { border-color: var(--accent); background: rgba(0, 122, 255, 0.25); box-shadow: 0 0 10px rgba(0,122,255,0.3); }
+        .p-year { font-size: 11px; font-weight: 800; color: var(--accent); display: block; }
         .s-group { margin-bottom: 12px; }
-        .s-header { display: flex; justify-content: space-between; font-size: 9px; color: #555; margin-bottom: 4px; }
-        
-        input[type="range"] { 
-            width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); 
-            height: 2px; border-radius: 1px; outline: none;
-        }
-        input[type="range"]::-webkit-slider-thumb { 
-            -webkit-appearance: none; width: 22px; height: 22px; 
-            background: #fff; border-radius: 50%;
-        }
+        .s-header { display: flex; justify-content: space-between; font-size: 9px; color: #777; margin-bottom: 4px; font-weight: 700; }
+        input[type="range"] { width: 100%; -webkit-appearance: none; background: rgba(255,255,255,0.1); height: 2px; border-radius: 1px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: #fff; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
         input[type="file"] { display: none; }
     </style>
 </head>
 <body>
-
-<div class="header"><h1>FILM SIMULATOR</h1></div>
-
+<div class="header"><h1>FILM SIMULATOR PRO</h1></div>
 <div class="viewport" id="viewport">
-    <div id="placeholder">画像を選択してください</div>
+    <div id="placeholder">写真を読み込んでください</div>
     <canvas id="glCanvas"></canvas>
 </div>
-
 <div class="controls">
     <div class="action-row">
         <label class="btn btn-import">写真を選択<input type="file" id="imageInput" accept="image/*"></label>
-        <button class="btn btn-save" id="saveBtn">画像を保存</button>
+        <button class="btn btn-save" id="saveBtn">保存する</button>
     </div>
-
     <div class="presets">
         <div class="p-btn" onclick="applyPreset(1970)"><span class="p-year">1970s</span></div>
         <div class="p-btn" onclick="applyPreset(1980)"><span class="p-year">1980s</span></div>
         <div class="p-btn" onclick="applyPreset(1990)"><span class="p-year">1990s</span></div>
         <div class="p-btn" onclick="applyPreset(2000)"><span class="p-year">2000s</span></div>
     </div>
-
-    <div class="s-group">
-        <div class="s-header"><span>露出</span><span id="v0">0</span></div>
-        <input type="range" id="sExp" min="-100" max="100" value="0">
-    </div>
-    <div class="s-group">
-        <div class="s-header"><span>フィルム色</span><span id="v1">0%</span></div>
-        <input type="range" id="sColor" min="0" max="100" value="0">
-    </div>
-    <div class="s-group">
-        <div class="s-header"><span>粒子感</span><span id="v2">0%</span></div>
-        <input type="range" id="sGrain" min="0" max="100" value="0">
-    </div>
-    <div class="s-group">
-        <div class="s-header"><span>周辺減光</span><span id="v3">0%</span></div>
-        <input type="range" id="sVig" min="0" max="100" value="0">
-    </div>
+    <div class="s-group"><div class="s-header"><span>露出</span><span id="v0">0</span></div><input type="range" id="sExp" min="-100" max="100" value="0"></div>
+    <div class="s-group"><div class="s-header"><span>時代の質感</span><span id="v1">0%</span></div><input type="range" id="sColor" min="0" max="100" value="0"></div>
+    <div class="s-group"><div class="s-header"><span>粒子</span><span id="v2">0%</span></div><input type="range" id="sGrain" min="0" max="100" value="0"></div>
+    <div class="s-group"><div class="s-header"><span>周辺減光</span><span id="v3">0%</span></div><input type="range" id="sVig" min="0" max="100" value="0"></div>
 </div>
 
 <script>
@@ -111,15 +65,17 @@ const canvas = document.getElementById('glCanvas');
 const viewport = document.getElementById('viewport');
 const saveBtn = document.getElementById('saveBtn');
 let gl, program, imgTex, currentImg, isComparing = false;
+let currentEra = 1990;
 
 const presets = {
-    1970: { exp: -15, color: 80, grain: 40, vig: 60 },
-    1980: { exp: 0, color: 70, grain: 60, vig: 40 },
-    1990: { exp: 20, color: 90, grain: 50, vig: 25 },
-    2000: { exp: 10, color: 40, grain: 20, vig: 15 }
+    1970: { exp: -10, color: 85, grain: 35, vig: 65 },
+    1980: { exp: 0, color: 70, grain: 60, vig: 45 },
+    1990: { exp: 25, color: 90, grain: 50, vig: 30 },
+    2000: { exp: 15, color: 45, grain: 25, vig: 20 }
 };
 
 function applyPreset(year) {
+    currentEra = year;
     const p = presets[year];
     document.getElementById('sExp').value = p.exp;
     document.getElementById('sColor').value = p.color;
@@ -145,8 +101,7 @@ document.getElementById('imageInput').onchange = (e) => {
     reader.onload = (ev) => {
         currentImg = new Image();
         currentImg.onload = () => { 
-            canvas.style.display="block"; 
-            saveBtn.style.display="block";
+            canvas.style.display="block"; saveBtn.style.display="block";
             document.getElementById('placeholder').style.display="none";
             render(); 
         };
@@ -155,18 +110,17 @@ document.getElementById('imageInput').onchange = (e) => {
     reader.readAsDataURL(file);
 };
 
-// 保存機能
 saveBtn.onclick = () => {
     if(!currentImg) return;
-    draw(); // 最新の状態で描画
+    draw();
     const link = document.createElement('a');
-    link.download = 'film-simulated-' + Date.now() + '.jpg';
-    link.href = canvas.toDataURL('image/jpeg', 0.9);
+    link.download = 'film-' + currentEra + '-' + Date.now() + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
     link.click();
 };
 
 function initGL() {
-    gl = canvas.getContext('webgl', { preserveDrawingBuffer: true }); // 保存に必要
+    gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
     const vs = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vs, `attribute vec2 p; varying vec2 u; void main(){ u=p*0.5+0.5; gl_Position=vec4(p,0.0,1.0); }`);
     gl.compileShader(vs);
@@ -174,22 +128,54 @@ function initGL() {
     gl.shaderSource(fs, `
         precision highp float;
         varying vec2 u; uniform sampler2D t;
-        uniform float u_e, u_c, u_g, u_v, u_time;
+        uniform float u_e, u_c, u_g, u_v, u_era;
         uniform bool u_cp;
         float rnd(vec2 co) { return fract(sin(dot(co.xy,vec2(12.9898,78.233)))*43758.5453); }
+        
+        vec3 filmic(vec3 x) {
+            float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+            return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+        }
+
         void main() {
             vec4 src = texture2D(t, vec2(u.x, 1.0-u.y));
             if(u_cp) { gl_FragColor=src; return; }
             vec3 c = src.rgb;
-            c *= pow(2.0, u_e * 1.5);
-            if(u_c > 0.0) {
-                float t = u_c;
-                c.r = mix(c.r, c.r * 1.15, t);
-                c.b = mix(c.b, c.b * 0.9, t);
-                c = smoothstep(-0.05*t, 1.05+0.05*t, c);
+            
+            // Exposure
+            c *= pow(2.0, u_e * 2.0);
+
+            // Era-Specific Color Science
+            if(u_era == 1970.0) { // Kodachrome: Red push & Deep Shadows
+                c = mix(c, vec3(c.r * 1.2, c.g * 0.9, c.b * 0.8), u_c);
+                c = pow(c, vec3(1.3 * u_c + (1.0-u_c)));
+            } else if(u_era == 1980.0) { // Fujicolor: Green push & Blue shadows
+                c = mix(c, vec3(c.r * 0.95, c.g * 1.1, c.b * 1.05), u_c);
+                c.b += 0.05 * u_c;
+            } else if(u_era == 1990.0) { // Utsu-run: Yellow high / Cyan low
+                c = mix(c, vec3(c.r * 1.1, c.g * 1.0, c.b * 0.9), u_c);
+                c.g += 0.03 * u_c;
+                c = filmic(c * 1.1);
+            } else if(u_era == 2000.0) { // Natura: Low contrast / High Latitude
+                c = mix(c, c * 0.9 + 0.1, u_c);
+                c.r *= 1.05;
             }
-            if(u_g > 0.0) { c += (rnd(u + fract(u_time)) - 0.5) * (u_g * 0.2); }
-            if(u_v > 0.0) { c *= smoothstep(1.0, 0.6 - (u_v * 0.2), distance(u, vec2(0.5))); }
+
+            // Film Contrast Curve
+            c = mix(c, filmic(c), u_c * 0.5);
+
+            // Grain (Simulating Silver Halide)
+            if(u_g > 0.0) {
+                float n = (rnd(u + fract(u_era)) - 0.5) * u_g * 0.25;
+                c += n * (1.0 - length(c-0.5)); // 粒子を中立面に載せる
+            }
+
+            // Vignette
+            if(u_v > 0.0) {
+                float d = distance(u, vec2(0.5));
+                c *= smoothstep(0.8, 0.45 - (u_v * 0.25), d);
+            }
+
             gl_FragColor = vec4(c, 1.0);
         }
     `);
@@ -223,7 +209,7 @@ function draw() {
     gl.uniform1f(gl.getUniformLocation(program, "u_c"), document.getElementById('sColor').value / 100);
     gl.uniform1f(gl.getUniformLocation(program, "u_g"), document.getElementById('sGrain').value / 100);
     gl.uniform1f(gl.getUniformLocation(program, "u_v"), document.getElementById('sVig').value / 100);
-    gl.uniform1f(gl.getUniformLocation(program, "u_time"), performance.now()/1000);
+    gl.uniform1f(gl.getUniformLocation(program, "u_era"), currentEra);
     gl.uniform1i(gl.getUniformLocation(program, "u_cp"), isComparing);
     const pLoc = gl.getAttribLocation(program, "p");
     const buf = gl.createBuffer();
@@ -234,10 +220,7 @@ function draw() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-['sExp','sColor','sGrain','sVig'].forEach(id => {
-    document.getElementById(id).oninput = updateUI;
-});
-
+['sExp','sColor','sGrain','sVig'].forEach(id => { document.getElementById(id).oninput = updateUI; });
 const setComp = (v) => { isComparing = v; draw(); };
 viewport.addEventListener('touchstart', (e) => { if(e.target === canvas) { e.preventDefault(); setComp(true); } });
 viewport.addEventListener('touchend', () => setComp(false));
